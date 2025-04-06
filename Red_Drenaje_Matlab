@@ -1,0 +1,97 @@
+%% 1. Agregar la caja de herramientas topotoolbox
+% agregar ruta <addpath>
+% Esto le dice a MATLAB que busque en la carpeta la libreria de topotoolbox
+% cuando ejecutes funciones o scripts que se encuentran dentro de esa carpeta.
+clear
+clc
+addpath 'C:\Users\samsc\OneDrive\Escritorio\Proyecto de Titulacion\Terrazas Marinas\Proyecto Matlab\MAtlab_Scripts\topotoolbox-master';
+addpath 'C:\Users\samsc\OneDrive\Escritorio\Proyecto de Titulacion\Terrazas Marinas\ProyectoQgis_abril2025\Proyecto Qgis\Data\Raster\TIFF\WorldDEMNeo_DTM_015_N15_72_W97_Cortes'
+
+%% 2. Cargar el DEM
+%GRIDobj = carga el archivo que contiene el DEM.tif
+% Digital Elevation Model (DEM)
+% C:\Users\igu-fo01\Desktop\Terrazas Marinas\Proyecto Qgis\Data\Raster\TIFF\Recortes
+
+DEM = GRIDobj('Oaxaca_WDNEO_15N_72_W97.tif');
+
+%% NOTE: Visualizar que el DEM se encuentre en UTM y no geograficas 
+% imageschs = visualiza el DEM
+
+imageschs(DEM,[],'colormap','parula'); %muestra el mapa con color spring o parula
+%% 3. reproject2utm = de Geograficas a UTM
+%INPUT = DER; función asociada a conjunto de datos que está en la "derecha"
+%OUTPUT = IZQ; el resultado del proceso se está almacenando en la "izquierda"
+
+[GRIDr,zone] = reproject2utm(DEM,10);  
+
+%el 10 indica que la celda mide 10x10m
+%entre menor sea el valor aumenta la resolucion
+
+%% NOTE: Visualizar imagen transformada a UTM
+GRIDr = DEM;
+
+figure
+imageschs(GRIDr);
+
+%Para evitar que se vea en x10^5
+%Cambia el formato de las etiquetas de los ejes
+
+%xtickformat('%,.0f'); % Para el eje X
+%ytickformat('%,.0f'); % Para el eje Y
+
+%% 4. Sombreado de terreno (hillshade)
+%A partir del angulo entre la superficie y los rayos  de luz
+figure
+hillshade(GRIDr);
+
+%% 5. Calculo de corrientes de flujo (FLOWobj)
+%Direccion del flujo = FD
+
+%Metodo *normal*
+FD1 = FLOWobj(GRIDr);
+
+%Metodo de *correccion de irregularidades*
+FD2 = FLOWobj(GRIDr,'preprocess','carve');
+
+%% 6. Flow accumulation (Log)
+%Calcula la acumulacion de flujo a partir de FLOWobj = FA
+%Necesita la direccion del flujo para saber donde se acumula
+
+%Metodo *normal*
+FA1= flowacc(FD1);
+%Metodo de *correccion de irregularidades*
+FA2= flowacc(FD2);
+
+%% NOTE. Visualizacion de la acumulacion del flujo
+%flowacc (DEM) muestra el area de drenaje (combina 2 elementos)
+%sombras, colores
+%log potencia el color
+
+
+%Metodo *normal*
+figure
+imageschs(GRIDr,log(FA1));
+
+%Metodo de *correccion de irregularidades*
+figure
+imageschs(GRIDr,log(FA2));
+
+%% 7. drainage network (Red de drenaje)
+%need FD & FAcum
+%como poner limite para que no plotee todos los drenajes?
+%condicion a mayores a 1k m2 para rapidez
+
+S = STREAMobj(FD2,FA2>100);
+%S = STREAMobj(FD1,FA1);
+
+%% Note. Visualizacion de la red de drenaje drainage network
+
+%muestra el relieve del terreno (a través del hillshade) 
+% y superpone la red de drenaje
+
+figure
+hillshade(DEM)
+hold on                 %mantiene como base el hillshade
+plot (S,'b') 	        %k=black b=blue
+
+
